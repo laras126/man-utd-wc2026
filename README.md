@@ -9,7 +9,7 @@ calendar** you can import into Apple Calendar, Google Calendar, or Outlook.
 - Top right: **Download .ics** for the full schedule.
 - Player headshots load live from the Wikipedia REST API, with an initials fallback.
 
-All fixture data is hardcoded (no runtime API needed except the Wikipedia avatars).
+All fixture data is hardcoded (no runtime API needed except the Wikipedia avatars). All code and data collection is done by Claude.
 
 ---
 
