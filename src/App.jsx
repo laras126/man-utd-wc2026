@@ -22,18 +22,24 @@ const FLAG = {
   Morocco: "🇲🇦", France: "🇫🇷", "Ivory Coast": "🇨🇮", Uruguay: "🇺🇾", Turkey: "🇹🇷", Belgium: "🇧🇪",
 };
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const ET_FMT = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  weekday: "short", day: "numeric", month: "short", year: "numeric",
+  hour: "2-digit", minute: "2-digit", hour12: false,
+});
+
+const getETParts = (iso) =>
+  Object.fromEntries(ET_FMT.formatToParts(new Date(iso)).map((p) => [p.type, p.value]));
 
 const fmtDate = (iso) => {
-  const d = new Date(iso);
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  const mm = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()} · ${hh}:${mm} UTC`;
+  const p = getETParts(iso);
+  const hh = p.hour === "24" ? "00" : p.hour;
+  return `${p.weekday} ${p.day} ${p.month} ${p.year} · ${hh}:${p.minute} ET`;
 };
 const shortDate = (iso) => {
-  const d = new Date(iso);
-  return `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} · ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")} UTC`;
+  const p = getETParts(iso);
+  const hh = p.hour === "24" ? "00" : p.hour;
+  return `${p.weekday} ${p.day} ${p.month} · ${hh}:${p.minute} ET`;
 };
 const initials = (n) => n.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
 
@@ -190,7 +196,7 @@ function Detail({ card }) {
           Download this match (.ics)
         </button>
       </div>
-      <div className="foot">Kick-off times shown in UTC. Knockout-stage opponents appear automatically once results are known. Headshots load live from the Wikipedia REST API.</div>
+      <div className="foot">Kick-off times shown in ET (Eastern Time). Knockout-stage opponents appear automatically once results are known. Headshots load live from the Wikipedia REST API.</div>
     </div>
   );
 }
