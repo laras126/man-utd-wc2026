@@ -7,7 +7,7 @@ calendar** you can import into Apple Calendar, Google Calendar, or Outlook.
 - Left panel: scrollable, date-sorted list of matches (filter by nation).
 - Right panel: player profile, venue, kick-off time (UTC), and a per-match `.ics`.
 - Top right: **Download .ics** for the full schedule.
-- Player headshots load live from the Wikipedia REST API, with an initials fallback.
+- Player headshots load live from the Wikipedia REST API, with an initials fallback. 
 
 All fixture data is hardcoded (no runtime API needed except the Wikipedia avatars). All code and data collection is done by Claude.
 
