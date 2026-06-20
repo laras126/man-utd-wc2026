@@ -241,12 +241,7 @@ function Detail({ card }) {
         <div className="role">{p.role}</div>
         <ul>{p.bio.map((b, i) => <li key={i}>{b}</li>)}</ul>
       </div>
-      <div className="dactions">
-        <button className="dlbtn alt" onClick={() => download(`${p.id}-vs-${card.opponent.toLowerCase().replace(/\s+/g, "-")}.ics`, buildICS([card]))}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" /></svg>
-          Download this match (.ics)
-        </button>
-      </div>
+
       <div className="foot">Kick-off times shown in ET (Eastern Time). Knockout-stage opponents appear automatically once results are known. Headshots load live from the Wikipedia REST API.</div>
     </div>
   );
@@ -309,15 +304,7 @@ function MatchDetail({ group }) {
           <ul>{c.player.bio.map((b, i) => <li key={i}>{b}</li>)}</ul>
         </div>
       ))}
-      <div className="dactions">
-        <button className="dlbtn alt" onClick={() => download(
-          `${group.home_name.toLowerCase().replace(/\s+/g, "-")}-vs-${group.away_name.toLowerCase().replace(/\s+/g, "-")}.ics`,
-          buildICS(group.cards)
-        )}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" /></svg>
-          Download match .ics
-        </button>
-      </div>
+
       <div className="foot">Kick-off times shown in ET (Eastern Time). Knockout-stage opponents appear automatically once results are known.</div>
     </div>
   );
@@ -431,10 +418,6 @@ export default function ManUtdWorldCup2026() {
               : <p>{allCards.length} match appearances · {PLAYERS.length} players · {Object.keys(NATION_CODES).length} nations</p>}
           </div>
           <div className="btns">
-            <button className="dlbtn" disabled={loading} onClick={() => download("man-utd-world-cup-2026.ics", buildICS(allCards))}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" /></svg>
-              Download .ics
-            </button>
             {icsSubscribeUrl && <SubscribeDropdown icsUrl={icsSubscribeUrl} webcalUrl={webcalUrl} />}
           </div>
         </div>
