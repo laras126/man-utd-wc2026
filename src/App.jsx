@@ -151,7 +151,15 @@ const CSS = `
 .muwc .dlbtn.alt{border-color:var(--pitch);background:var(--pitch);color:#fff}
 .muwc .dlbtn.alt:hover{background:var(--pitch-dark)}
 .muwc .foot{font-size:11px;color:var(--muted);margin-top:26px;line-height:1.5}
-@media(max-width:720px){.muwc .main{flex-direction:column}.muwc .list{width:100%;max-width:none;border-right:none;border-bottom:1px solid #e4eae5;max-height:42vh}}
+.muwc .back-btn{display:none;align-items:center;gap:6px;width:100%;padding:13px 18px;font:inherit;font-size:14px;font-weight:600;color:var(--pitch-dark);background:#fff;border:none;border-bottom:1px solid #e4eae5;cursor:pointer;text-align:left;flex-shrink:0}
+.muwc .back-btn:hover{background:#f3f8f3}
+@media(max-width:720px){
+  .muwc .main{flex-direction:column}
+  .muwc .list{width:100%;max-width:none;border-right:none;border-bottom:none;flex:1 1 auto}
+  .muwc .detail{position:fixed;inset:0;z-index:200;transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column}
+  .muwc .detail.open{transform:translateX(0)}
+  .muwc .back-btn{display:flex}
+}
 .muwc .tabs{display:flex;gap:4px;margin-right:4px}
 .muwc .tab{font:inherit;font-size:12.5px;font-weight:600;padding:6px 12px;border:1px solid #d7e0d8;border-radius:8px;background:#fff;color:var(--muted);cursor:pointer}
 .muwc .tab.active{background:var(--pitch);color:#fff;border-color:var(--pitch)}
@@ -214,11 +222,13 @@ function Card({ card, active, onClick }) {
   );
 }
 
-function Detail({ card }) {
+function Detail({ card, onClose }) {
   if (!card) return <div className="empty">Select a match on the left to see the player profile, venue details, and a per-match calendar download.</div>;
   const p = card.player;
   const phaseLabel = PHASE_LABEL[card.phase] || card.phase;
   return (
+    <>
+    <button className="back-btn" onClick={onClose}>‹ Back</button>
     <div className="detailwrap">
       <div className="dhead">
         <Avatar player={p} size={74} />
@@ -244,6 +254,7 @@ function Detail({ card }) {
 
       <div className="foot">Kick-off times shown in ET (Eastern Time). Knockout-stage opponents appear automatically once results are known. Headshots load live from the Wikipedia REST API.</div>
     </div>
+    </>
   );
 }
 
@@ -270,10 +281,12 @@ function MatchCard({ group, active, onClick }) {
   );
 }
 
-function MatchDetail({ group }) {
+function MatchDetail({ group, onClose }) {
   if (!group) return <div className="empty">Select a match on the left to see the fixture details and Man Utd players involved.</div>;
   const phaseLabel = PHASE_LABEL[group.phase] || group.phase;
   return (
+    <>
+    <button className="back-btn" onClick={onClose}>‹ Back</button>
     <div className="detailwrap">
       <div className="dhead" style={{ alignItems: "flex-start" }}>
         <div>
@@ -307,6 +320,7 @@ function MatchDetail({ group }) {
 
       <div className="foot">Kick-off times shown in ET (Eastern Time). Knockout-stage opponents appear automatically once results are known.</div>
     </div>
+    </>
   );
 }
 
@@ -445,8 +459,10 @@ export default function ManUtdWorldCup2026() {
               ? cards.map((c) => <Card key={c.id} card={c} active={c.id === sel} onClick={() => setSel(c.id)} />)
               : matchGroups.map((g) => <MatchCard key={g.num} group={g} active={g.num === selMatch} onClick={() => setSelMatch(g.num)} />)}
         </div>
-        <div className="detail">
-          {view === "players" ? <Detail card={selectedCard} /> : <MatchDetail group={selectedGroup} />}
+        <div className={"detail" + ((view === "players" ? !!selectedCard : !!selectedGroup) ? " open" : "")}>
+          {view === "players"
+            ? <Detail card={selectedCard} onClose={() => setSel(null)} />
+            : <MatchDetail group={selectedGroup} onClose={() => setSelMatch(null)} />}
         </div>
       </div>
     </div>
