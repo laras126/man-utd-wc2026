@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { PLAYERS, NATION_CODES } from "./players.js";
 import { buildICS, eventFor } from "./ics-utils.js";
 
-const MATCHES_URL = "https://wheniskickoff.com/data/v1/matches.json";
+const MATCHES_URL = import.meta.env.BASE_URL + "matches.json";
 
 const CODE_TO_NATION = Object.fromEntries(
   Object.entries(NATION_CODES).map(([n, c]) => [c, n])
@@ -56,12 +56,33 @@ function buildCards(matches) {
       awayNation && { nation: awayNation, opponent: home_name },
     ].filter(Boolean).forEach(({ nation, opponent }) => {
       PLAYERS.filter((p) => p.nation === nation).forEach((player) => {
-        cards.push({ id: `${player.id}-${num}`, player, nation, opponent, start: datetime_utc, stadium: venue_name, city: venue_city, phase });
+        cards.push({ id: `${player.id}-${num}`, num, player, nation, opponent, start: datetime_utc, stadium: venue_name, city: venue_city, phase });
       });
     });
   });
   cards.sort((a, b) => new Date(a.start) - new Date(b.start) || a.player.name.localeCompare(b.player.name));
   return cards;
+}
+
+function buildMatchGroups(matches, cards) {
+  const byNum = {};
+  cards.forEach((card) => {
+    if (!byNum[card.num]) byNum[card.num] = [];
+    byNum[card.num].push(card);
+  });
+  return matches
+    .filter((m) => byNum[m.num])
+    .map((m) => ({
+      num: m.num,
+      start: m.datetime_utc,
+      home_name: m.home_name,
+      away_name: m.away_name,
+      stadium: m.venue_name,
+      city: m.venue_city,
+      phase: m.phase,
+      cards: byNum[m.num],
+    }))
+    .sort((a, b) => new Date(a.start) - new Date(b.start));
 }
 
 function download(filename, text) {
@@ -128,6 +149,13 @@ const CSS = `
 .muwc .dlbtn.alt:hover{background:var(--pitch-dark)}
 .muwc .foot{font-size:11px;color:var(--muted);margin-top:26px;line-height:1.5}
 @media(max-width:720px){.muwc .main{flex-direction:column}.muwc .list{width:100%;max-width:none;border-right:none;border-bottom:1px solid #e4eae5;max-height:42vh}}
+.muwc .tabs{display:flex;gap:4px;margin-right:4px}
+.muwc .tab{font:inherit;font-size:12.5px;font-weight:600;padding:6px 12px;border:1px solid #d7e0d8;border-radius:8px;background:#fff;color:var(--muted);cursor:pointer}
+.muwc .tab.active{background:var(--pitch);color:#fff;border-color:var(--pitch)}
+.muwc .mhead{margin:0 0 4px;font-size:17px;font-weight:700;letter-spacing:-.2px}
+.muwc .mcard-players{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.muwc .past-toggle{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap}
+.muwc .past-toggle input{cursor:pointer;accent-color:var(--pitch)}
 `;
 
 const avatarCache = {};
@@ -201,6 +229,69 @@ function Detail({ card }) {
   );
 }
 
+function MatchCard({ group, active, onClick }) {
+  return (
+    <div className={"card" + (active ? " active" : "")} onClick={onClick}>
+      <div className="ctext">
+        <div className="ctitle">{group.home_name} vs {group.away_name}</div>
+        <div className="csub">
+          <span>{shortDate(group.start)}</span>
+          <span>{group.stadium}, {group.city}</span>
+        </div>
+        <div className="mcard-players">
+          {group.cards.map((c) => (
+            <span key={c.player.id} className="pill">{FLAG[c.nation] || ""} {c.player.name}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MatchDetail({ group }) {
+  if (!group) return <div className="empty">Select a match on the left to see the fixture details and Man Utd players involved.</div>;
+  const phaseLabel = PHASE_LABEL[group.phase] || group.phase;
+  return (
+    <div className="detailwrap">
+      <div className="dhead" style={{ alignItems: "flex-start" }}>
+        <div>
+          <p className="mhead">{group.home_name} vs {group.away_name}</p>
+          <div className="meta">{fmtDate(group.start)}</div>
+        </div>
+      </div>
+      <div className="matchbox">
+        <div className="pitchline" />
+        <div className="mrow"><span className="k">Stadium</span><span>{group.stadium}</span></div>
+        <div className="mrow"><span className="k">City</span><span>{group.city}</span></div>
+        <div className="mrow"><span className="k">Fixture</span><span>2026 FIFA World Cup · {phaseLabel}</span></div>
+      </div>
+      {group.cards.map((c) => (
+        <div key={c.player.id} className="biocard" style={{ marginTop: 16 }}>
+          <div className="pitchline" />
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 10 }}>
+            <Avatar player={c.player} size={46} />
+            <div>
+              <div style={{ fontWeight: 650, fontSize: 14 }}>{c.player.name}</div>
+              <div className="role">{FLAG[c.nation] || ""} {c.nation} · {c.player.position}</div>
+            </div>
+          </div>
+          <ul>{c.player.bio.map((b, i) => <li key={i}>{b}</li>)}</ul>
+        </div>
+      ))}
+      <div className="dactions">
+        <button className="dlbtn alt" onClick={() => download(
+          `${group.home_name.toLowerCase().replace(/\s+/g, "-")}-vs-${group.away_name.toLowerCase().replace(/\s+/g, "-")}.ics`,
+          buildICS(group.cards)
+        )}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" /></svg>
+          Download match .ics
+        </button>
+      </div>
+      <div className="foot">Kick-off times shown in ET (Eastern Time). Knockout-stage opponents appear automatically once results are known.</div>
+    </div>
+  );
+}
+
 export default function ManUtdWorldCup2026() {
   const [matchData, setMatchData] = useState(null);
   const [fetchError, setFetchError] = useState(false);
@@ -213,11 +304,25 @@ export default function ManUtdWorldCup2026() {
   }, []);
 
   const allCards = useMemo(() => (matchData ? buildCards(matchData) : []), [matchData]);
+  const [view, setView] = useState("players");
   const [sel, setSel] = useState(null);
+  const [selMatch, setSelMatch] = useState(null);
   const [nation, setNation] = useState("All");
+  const [showPast, setShowPast] = useState(false);
   const nations = useMemo(() => ["All", ...Array.from(new Set(allCards.map((c) => c.nation))).sort()], [allCards]);
-  const cards = useMemo(() => (nation === "All" ? allCards : allCards.filter((c) => c.nation === nation)), [allCards, nation]);
+  const cards = useMemo(() => {
+    let result = nation === "All" ? allCards : allCards.filter((c) => c.nation === nation);
+    if (!showPast) result = result.filter((c) => new Date(c.start) >= new Date());
+    return result;
+  }, [allCards, nation, showPast]);
   const selectedCard = allCards.find((c) => c.id === sel) || null;
+  const allMatchGroups = useMemo(() => (matchData ? buildMatchGroups(matchData, allCards) : []), [matchData, allCards]);
+  const matchGroups = useMemo(() => {
+    let result = nation === "All" ? allMatchGroups : allMatchGroups.filter((g) => g.cards.some((c) => c.nation === nation));
+    if (!showPast) result = result.filter((g) => new Date(g.start) >= new Date());
+    return result;
+  }, [allMatchGroups, nation, showPast]);
+  const selectedGroup = allMatchGroups.find((g) => g.num === selMatch) || null;
 
   const icsSubscribeUrl = typeof window !== "undefined"
     ? window.location.href.split("?")[0].replace(/\/?$/, "/") + "man-utd-wc2026.ics"
@@ -264,17 +369,29 @@ export default function ManUtdWorldCup2026() {
       <div className="main">
         <div className="list">
           <div className="filterbar">
+            <div className="tabs">
+              <button className={"tab" + (view === "players" ? " active" : "")} onClick={() => setView("players")}>Players</button>
+              <button className={"tab" + (view === "matches" ? " active" : "")} onClick={() => setView("matches")}>Matches</button>
+            </div>
             <label style={{ fontSize: "12px", color: "#5d6b62" }}>Nation</label>
             <select value={nation} onChange={(e) => setNation(e.target.value)}>
               {nations.map((n) => <option key={n} value={n}>{n === "All" ? "All nations" : n}</option>)}
             </select>
-            <span className="count">{cards.length} matches</span>
+            <label className="past-toggle">
+              <input type="checkbox" checked={showPast} onChange={(e) => setShowPast(e.target.checked)} />
+              Past
+            </label>
+            <span className="count">{view === "players" ? `${cards.length} appearances` : `${matchGroups.length} matches`}</span>
           </div>
           {loading
             ? <div className="empty" style={{ height: 200 }}>Loading…</div>
-            : cards.map((c) => <Card key={c.id} card={c} active={c.id === sel} onClick={() => setSel(c.id)} />)}
+            : view === "players"
+              ? cards.map((c) => <Card key={c.id} card={c} active={c.id === sel} onClick={() => setSel(c.id)} />)
+              : matchGroups.map((g) => <MatchCard key={g.num} group={g} active={g.num === selMatch} onClick={() => setSelMatch(g.num)} />)}
         </div>
-        <div className="detail"><Detail card={selectedCard} /></div>
+        <div className="detail">
+          {view === "players" ? <Detail card={selectedCard} /> : <MatchDetail group={selectedGroup} />}
+        </div>
       </div>
     </div>
   );

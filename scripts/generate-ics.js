@@ -34,7 +34,12 @@ function buildCards(matches) {
 
 const res = await fetch(MATCHES_URL);
 if (!res.ok) throw new Error(`Failed to fetch matches: ${res.status}`);
-const { data: matches } = await res.json();
+const json = await res.json();
+const { data: matches } = json;
+
+const jsonPath = join(__dirname, "../public/matches.json");
+writeFileSync(jsonPath, JSON.stringify(json), "utf8");
+console.log(`Saved ${jsonPath}`);
 
 const cards = buildCards(matches);
 const ics = buildICS(cards);
