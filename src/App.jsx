@@ -426,7 +426,7 @@ export default function ManUtdWorldCup2026() {
         <div className="stripes" /><div className="midline" />
         <div className="row">
           <div className="brand">
-            <h1>Manchester United at the 2026 World Cup</h1>
+            <h1>Manchester United Players at the 2026 World Cup</h1>
             {loading
               ? <p>Loading fixtures…</p>
               : <p>{allCards.length} match appearances · {PLAYERS.length} players · {Object.keys(NATION_CODES).length} nations</p>}
