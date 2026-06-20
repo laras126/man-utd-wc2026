@@ -18,8 +18,8 @@ const PHASE_LABEL = {
 };
 
 const FLAG = {
-  Portugal: "🇵🇹", Brazil: "🇧🇷", Netherlands: "🇳🇱", England: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", Argentina: "🇦🇷",
-  Morocco: "🇲🇦", France: "🇫🇷", "Ivory Coast": "🇨🇮", Uruguay: "🇺🇾", Turkey: "🇹🇷", Belgium: "🇧🇪",
+  Portugal: "🇵🇹", Brazil: "🇧🇷", England: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", Argentina: "🇦🇷",
+  Morocco: "🇲🇦", "Ivory Coast": "🇨🇮", Uruguay: "🇺🇾", Turkey: "🇹🇷", Belgium: "🇧🇪",
 };
 
 const ET_FMT = new Intl.DateTimeFormat("en-US", {
