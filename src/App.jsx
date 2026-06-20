@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { PLAYERS, NATION_CODES } from "./players.js";
 import { buildICS, eventFor } from "./ics-utils.js";
 
@@ -46,17 +46,17 @@ const initials = (n) => n.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpp
 function buildCards(matches) {
   const cards = [];
   matches.forEach((match) => {
-    const { num, datetime_utc, home, away, home_name, away_name, venue_name, venue_city, phase } = match;
+    const { num, datetime_utc, home, away, home_name, away_name, venue_name, venue_city, phase, score_home, score_away, status } = match;
     if (!home || !away) return;
     const homeNation = CODE_TO_NATION[home] || null;
     const awayNation = CODE_TO_NATION[away] || null;
     if (!homeNation && !awayNation) return;
     [
-      homeNation && { nation: homeNation, opponent: away_name },
-      awayNation && { nation: awayNation, opponent: home_name },
-    ].filter(Boolean).forEach(({ nation, opponent }) => {
+      homeNation && { nation: homeNation, opponent: away_name, scoreFor: score_home, scoreAgainst: score_away },
+      awayNation && { nation: awayNation, opponent: home_name, scoreFor: score_away, scoreAgainst: score_home },
+    ].filter(Boolean).forEach(({ nation, opponent, scoreFor, scoreAgainst }) => {
       PLAYERS.filter((p) => p.nation === nation).forEach((player) => {
-        cards.push({ id: `${player.id}-${num}`, num, player, nation, opponent, start: datetime_utc, stadium: venue_name, city: venue_city, phase });
+        cards.push({ id: `${player.id}-${num}`, num, player, nation, opponent, start: datetime_utc, stadium: venue_name, city: venue_city, phase, scoreFor, scoreAgainst, status });
       });
     });
   });
@@ -80,6 +80,9 @@ function buildMatchGroups(matches, cards) {
       stadium: m.venue_name,
       city: m.venue_city,
       phase: m.phase,
+      score_home: m.score_home,
+      score_away: m.score_away,
+      status: m.status,
       cards: byNum[m.num],
     }))
     .sort((a, b) => new Date(a.start) - new Date(b.start));
@@ -99,7 +102,7 @@ const CSS = `
 .muwc{--pitch:#1f8a4c;--pitch-dark:#12592f;--ink:#16241c;--muted:#5d6b62;--bg:#f4f7f4;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   color:var(--ink);display:flex;flex-direction:column;height:100vh;max-width:1180px;margin:0 auto;background:var(--bg)}
-.muwc .topbar{position:relative;color:#fff;padding:18px 22px;overflow:hidden;flex:0 0 auto;
+.muwc .topbar{position:relative;color:#fff;padding:18px 22px;flex:0 0 auto;
   background:linear-gradient(135deg,#1f8a4c,#12592f)}
 .muwc .stripes{position:absolute;inset:0;opacity:.5;background:repeating-linear-gradient(90deg,transparent 0 64px,rgba(255,255,255,.045) 64px 128px)}
 .muwc .midline{position:absolute;left:0;right:0;bottom:0;height:2px;background:rgba(255,255,255,.22)}
@@ -154,8 +157,18 @@ const CSS = `
 .muwc .tab.active{background:var(--pitch);color:#fff;border-color:var(--pitch)}
 .muwc .mhead{margin:0 0 4px;font-size:17px;font-weight:700;letter-spacing:-.2px}
 .muwc .mcard-players{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.muwc .result{font-size:11px;font-weight:700;border-radius:999px;padding:2px 7px;letter-spacing:.3px;flex-shrink:0}
+.muwc .result-W{color:#0a5c2b;background:#d4edda}
+.muwc .result-D{color:#5d6b62;background:#e8eceb}
+.muwc .result-L{color:#8b1a1a;background:#fde8e8}
 .muwc .past-toggle{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap}
 .muwc .past-toggle input{cursor:pointer;accent-color:var(--pitch)}
+.muwc .sub-wrap{position:relative}
+.muwc .sub-menu{position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid #e4eae5;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.14);min-width:192px;z-index:1000;overflow:hidden}
+.muwc .sub-item{display:flex;align-items:center;gap:9px;width:100%;padding:10px 14px;font:inherit;font-size:13px;color:var(--ink);background:none;border:none;cursor:pointer;text-decoration:none;text-align:left;white-space:nowrap}
+.muwc .sub-item:hover{background:#f3f8f3}
+.muwc .sub-item+.sub-item{border-top:1px solid #f0f4f0}
+.muwc .sub-chevron{font-size:10px;margin-left:3px;opacity:.7}
 `;
 
 const avatarCache = {};
@@ -188,7 +201,13 @@ function Card({ card, active, onClick }) {
       <Avatar player={card.player} />
       <div className="ctext">
         <div className="ctitle">{card.player.name} <span style={{ color: "#1f8a4c" }}>({card.nation})</span> vs {card.opponent}</div>
-        <div className="csub"><span>{shortDate(card.start)}</span></div>
+        <div className="csub">
+          <span>{shortDate(card.start)}</span>
+          {card.status === "FINISHED" && (() => {
+            const r = card.scoreFor > card.scoreAgainst ? "W" : card.scoreFor < card.scoreAgainst ? "L" : "D";
+            return <span className={`result result-${r}`}>{r} {card.scoreFor}–{card.scoreAgainst}</span>;
+          })()}
+        </div>
         <div className="csub"><span className="pill">{FLAG[card.nation]} {card.nation}</span><span>{card.stadium}, {card.city}</span></div>
       </div>
     </div>
@@ -209,6 +228,10 @@ function Detail({ card }) {
         <div className="pitchline" />
         <div className="vs"><span className="nat">{p.name} ({card.nation})</span> vs {card.opponent}</div>
         <div className="mrow"><span className="k">Kick-off</span><span>{fmtDate(card.start)}</span></div>
+        {card.status === "FINISHED" && (() => {
+          const r = card.scoreFor > card.scoreAgainst ? "W" : card.scoreFor < card.scoreAgainst ? "L" : "D";
+          return <div className="mrow"><span className="k">Result</span><span className={`result result-${r}`}>{r} {card.scoreFor}–{card.scoreAgainst}</span></div>;
+        })()}
         <div className="mrow"><span className="k">Stadium</span><span>{card.stadium}</span></div>
         <div className="mrow"><span className="k">City</span><span>{card.city}</span></div>
         <div className="mrow"><span className="k">Fixture</span><span>2026 FIFA World Cup · {phaseLabel}</span></div>
@@ -233,7 +256,11 @@ function MatchCard({ group, active, onClick }) {
   return (
     <div className={"card" + (active ? " active" : "")} onClick={onClick}>
       <div className="ctext">
-        <div className="ctitle">{group.home_name} vs {group.away_name}</div>
+        <div className="ctitle">
+          {group.status === "FINISHED"
+            ? <>{group.home_name} <span style={{ fontVariantNumeric: "tabular-nums" }}>{group.score_home}–{group.score_away}</span> {group.away_name}</>
+            : <>{group.home_name} vs {group.away_name}</>}
+        </div>
         <div className="csub">
           <span>{shortDate(group.start)}</span>
           <span>{group.stadium}, {group.city}</span>
@@ -255,7 +282,11 @@ function MatchDetail({ group }) {
     <div className="detailwrap">
       <div className="dhead" style={{ alignItems: "flex-start" }}>
         <div>
-          <p className="mhead">{group.home_name} vs {group.away_name}</p>
+          <p className="mhead">
+            {group.status === "FINISHED"
+              ? <>{group.home_name} <span style={{ fontVariantNumeric: "tabular-nums" }}>{group.score_home}–{group.score_away}</span> {group.away_name}</>
+              : <>{group.home_name} vs {group.away_name}</>}
+          </p>
           <div className="meta">{fmtDate(group.start)}</div>
         </div>
       </div>
@@ -288,6 +319,53 @@ function MatchDetail({ group }) {
         </button>
       </div>
       <div className="foot">Kick-off times shown in ET (Eastern Time). Knockout-stage opponents appear automatically once results are known.</div>
+    </div>
+  );
+}
+
+function SubscribeDropdown({ icsUrl, webcalUrl }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const copy = () => {
+    navigator.clipboard.writeText(icsUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => { setCopied(false); setOpen(false); }, 1500);
+    });
+  };
+
+  const googleUrl = `https://calendar.google.com/calendar/r/settings/addbyurl?url=${encodeURIComponent(icsUrl)}`;
+
+  return (
+    <div className="sub-wrap" ref={ref}>
+      <button className="dlbtn" onClick={() => setOpen((o) => !o)}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Subscribe <span className="sub-chevron">▾</span>
+      </button>
+      {open && (
+        <div className="sub-menu">
+          <a className="sub-item" href={webcalUrl} onClick={() => setOpen(false)}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Apple Calendar
+          </a>
+          <a className="sub-item" href={googleUrl} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            Google Calendar
+          </a>
+          <button className="sub-item" onClick={copy}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            {copied ? "Copied!" : "Copy URL"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -357,12 +435,7 @@ export default function ManUtdWorldCup2026() {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" /></svg>
               Download .ics
             </button>
-            {icsSubscribeUrl && (
-              <a className="dlbtn" href={webcalUrl}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                Subscribe
-              </a>
-            )}
+            {icsSubscribeUrl && <SubscribeDropdown icsUrl={icsSubscribeUrl} webcalUrl={webcalUrl} />}
           </div>
         </div>
       </div>
