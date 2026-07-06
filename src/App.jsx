@@ -88,6 +88,13 @@ function buildMatchGroups(matches, cards) {
     .sort((a, b) => new Date(a.start) - new Date(b.start));
 }
 
+function isLive(start, status) {
+  if (status === "FINISHED") return false;
+  const now = Date.now();
+  const kickoff = new Date(start).getTime();
+  return now >= kickoff && now < kickoff + 2 * 60 * 60 * 1000;
+}
+
 function download(filename, text) {
   const blob = new Blob([text], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -165,6 +172,9 @@ const CSS = `
 .muwc .tab.active{background:var(--pitch);color:#fff;border-color:var(--pitch)}
 .muwc .mhead{margin:0 0 4px;font-size:17px;font-weight:700;letter-spacing:-.2px}
 .muwc .mcard-players{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.muwc .live-badge{font-size:11px;font-weight:700;color:#b91c1c;background:#fee2e2;border-radius:999px;padding:2px 8px;display:inline-flex;align-items:center;gap:5px;flex-shrink:0}
+.muwc .live-dot{width:6px;height:6px;border-radius:50%;background:#b91c1c;animation:livepulse 1.2s ease-in-out infinite}
+@keyframes livepulse{0%,100%{opacity:1}50%{opacity:.25}}
 .muwc .result{font-size:11px;font-weight:700;border-radius:999px;padding:2px 7px;letter-spacing:.3px;flex-shrink:0}
 .muwc .result-W{color:#0a5c2b;background:#d4edda}
 .muwc .result-D{color:#5d6b62;background:#e8eceb}
@@ -211,6 +221,7 @@ function Card({ card, active, onClick }) {
         <div className="ctitle">{card.player.name} <span style={{ color: "#1f8a4c" }}>({card.nation})</span> vs {card.opponent}</div>
         <div className="csub">
           <span>{shortDate(card.start)}</span>
+          {isLive(card.start, card.status) && <span className="live-badge"><span className="live-dot" />LIVE</span>}
           {card.status === "FINISHED" && (() => {
             const r = card.scoreFor > card.scoreAgainst ? "W" : card.scoreFor < card.scoreAgainst ? "L" : "D";
             return <span className={`result result-${r}`}>{r} {card.scoreFor}–{card.scoreAgainst}</span>;
@@ -238,6 +249,7 @@ function Detail({ card, onClose }) {
         <div className="pitchline" />
         <div className="vs"><span className="nat">{p.name} ({card.nation})</span> vs {card.opponent}</div>
         <div className="mrow"><span className="k">Kick-off</span><span>{fmtDate(card.start)}</span></div>
+        {isLive(card.start, card.status) && <div className="mrow"><span className="k">Status</span><span className="live-badge"><span className="live-dot" />LIVE NOW</span></div>}
         {card.status === "FINISHED" && (() => {
           const r = card.scoreFor > card.scoreAgainst ? "W" : card.scoreFor < card.scoreAgainst ? "L" : "D";
           return <div className="mrow"><span className="k">Result</span><span className={`result result-${r}`}>{r} {card.scoreFor}–{card.scoreAgainst}</span></div>;
@@ -269,6 +281,7 @@ function MatchCard({ group, active, onClick }) {
         </div>
         <div className="csub">
           <span>{shortDate(group.start)}</span>
+          {isLive(group.start, group.status) && <span className="live-badge"><span className="live-dot" />LIVE</span>}
           <span>{group.stadium}, {group.city}</span>
         </div>
         <div className="mcard-players">
@@ -300,6 +313,7 @@ function MatchDetail({ group, onClose }) {
       </div>
       <div className="matchbox">
         <div className="pitchline" />
+        {isLive(group.start, group.status) && <div className="mrow"><span className="k">Status</span><span className="live-badge"><span className="live-dot" />LIVE NOW</span></div>}
         <div className="mrow"><span className="k">Stadium</span><span>{group.stadium}</span></div>
         <div className="mrow"><span className="k">City</span><span>{group.city}</span></div>
         <div className="mrow"><span className="k">Fixture</span><span>2026 FIFA World Cup · {phaseLabel}</span></div>
@@ -391,14 +405,14 @@ export default function ManUtdWorldCup2026() {
   const nations = useMemo(() => ["All", ...Array.from(new Set(allCards.map((c) => c.nation))).sort()], [allCards]);
   const cards = useMemo(() => {
     let result = nation === "All" ? allCards : allCards.filter((c) => c.nation === nation);
-    if (!showPast) result = result.filter((c) => new Date(c.start) >= new Date());
+    if (!showPast) result = result.filter((c) => c.status !== "FINISHED");
     return result;
   }, [allCards, nation, showPast]);
   const selectedCard = allCards.find((c) => c.id === sel) || null;
   const allMatchGroups = useMemo(() => (matchData ? buildMatchGroups(matchData, allCards) : []), [matchData, allCards]);
   const matchGroups = useMemo(() => {
     let result = nation === "All" ? allMatchGroups : allMatchGroups.filter((g) => g.cards.some((c) => c.nation === nation));
-    if (!showPast) result = result.filter((g) => new Date(g.start) >= new Date());
+    if (!showPast) result = result.filter((g) => g.status !== "FINISHED");
     return result;
   }, [allMatchGroups, nation, showPast]);
   const selectedGroup = allMatchGroups.find((g) => g.num === selMatch) || null;
